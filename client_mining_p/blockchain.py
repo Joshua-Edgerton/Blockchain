@@ -8,7 +8,7 @@ class Blockchain(object):
         self.chain = []
         self.current_transactions = []
         # Create the genesis block
-        self.new_block(previous_hash=1, proof=100)
+        self.new_block(previous_hash="==========================", proof=100)
     def new_block(self, proof, previous_hash=None):
         """
         Create a new Block in the Blockchain
@@ -22,19 +22,13 @@ class Blockchain(object):
         :param previous_hash: (Optional) <str> Hash of previous Block
         :return: <dict> New Block
         """
-        if len(self.chain) > 0:
-            block_string = json.dumps(self.last_block, sort_keys=True)
-            guess = f'{block_string}{proof}'.encode()
-            current_hash = hashlib.sha256(guess).hexdigest()
-        else:
-            current_hash = ""
+
         block = {
             'index': len(self.chain) + 1,
             'timestamp': time(),
             'transactions': self.current_transactions,
             'proof': proof,
             'previous_hash': previous_hash or self.hash(self.chain[-1]),
-            'hash': current_hash,
         }
         # Reset the current list of transactions
         self.current_transactions = []
@@ -42,6 +36,7 @@ class Blockchain(object):
         self.chain.append(block)
         # Return the new block
         return block
+
     def hash(self, block):
         """
         Creates a SHA-256 hash of a Block
@@ -57,18 +52,16 @@ class Blockchain(object):
         # We must make sure that the Dictionary is Ordered,
         # or we'll have inconsistent hashes
         # TODO: Create the block_string
-        string_object = json.dumps(block, sort_keys=True)
-        block_string = string_object.encode()
+        block_string = json.dumps(block, sort_keys=True).encode()
         # TODO: Hash this string using sha256
-        raw_hash = hashlib.sha256(block_string)
-        hex_hash = raw_hash.hexdigest()
+        hash = hashlib.sha256(block_string).hexdigest()
         # By itself, the sha256 function returns the hash in a raw string
         # that will likely include escaped characters.
         # This can be hard to read, but .hexdigest() converts the
         # hash to a string of hexadecimal characters, which is
         # easier to work with and understand
         # TODO: Return the hashed block string in hexadecimal format
-        return hex_hash
+        return hash
     @property
     def last_block(self):
         return self.chain[-1]
