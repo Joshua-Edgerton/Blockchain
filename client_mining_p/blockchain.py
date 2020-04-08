@@ -93,8 +93,17 @@ app = Flask(__name__)
 node_identifier = str(uuid4()).replace('-', '')
 # Instantiate the Blockchain
 blockchain = Blockchain()
-@app.route('/mine', methods=['GET'])
+# Changed "mine" endpoint to take a POST
+@app.route('/mine', methods=['POST'])
 def mine():
+    # Added a request to pull the data out of the POST
+    data = request.get_json()
+    # Require "proof" and "ID"
+    required = ['proof', 'id']
+    if not all(key in values for key in required):
+        response = {'message': "Missing values"}
+        return jsonify(response), 400
+    submitted_proof = values['proof']
     # Run the proof of work algorithm to get the next proof
     proof = blockchain.proof_of_work()
     # Forge the new Block by adding it to the chain with the proof
