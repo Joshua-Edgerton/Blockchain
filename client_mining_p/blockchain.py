@@ -115,6 +115,17 @@ def full_chain():
         'chain': blockchain.chain
     }
     return jsonify(response), 200
+
+# Add an endpoint called last_block
+# Returns last block in the chain
+@app.route('/last_block', methods=['GET'])
+def return_last_block():
+    # Uses the "last_block" function to return last block
+    response = {
+        'last_block': blockchain.last_block,
+    }
+    return jsonify(response), 200
+
 # Run the program on port 5000
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
