@@ -95,9 +95,10 @@ node_identifier = str(uuid4()).replace('-', '')
 blockchain = Blockchain()
 # Changed "mine" endpoint to take a POST
 @app.route('/mine', methods=['POST'])
+
 def mine():
     # Added a request to pull the data out of the POST
-    data = request.get_json()
+    values = request.get_json()
     # Require "proof" and "ID"
     required = ['proof', 'id']
     if not all(key in values for key in required):
@@ -105,19 +106,38 @@ def mine():
         return jsonify(response), 400
     submitted_proof = values['proof']
     # Run the proof of work algorithm to get the next proof
-    proof = blockchain.proof_of_work()
     # Forge the new Block by adding it to the chain with the proof
-    previous_hash = blockchain.hash(blockchain.last_block)
-    block = blockchain.new_block(proof, previous_hash)
-    response = {
-        'message': "New Block Forged",
-        'index': block['index'],
-        'transactions': block['transactions'],
-        'proof': block['proof'],
-        'previous_hash': block['previous_hash'],
-    }
-    return jsonify(response), 200
+    block_string = json.dumps(blockchain.last_block, sort_keys=True)
+
+    if blockchain.valid_proof(block_string, submitted_proof):
+        previous_hash = blockchain.hash(blockchain.last_block)
+        block = blockchain.new_block(submitted_proof, previous_hash)
+
+        response = {
+            'new_block': block
+        }
+
+        return jsonify(response), 200
+
+    else:
+        # TODO: Better messaging for late vs invalid proof
+        response = {
+            'message': "Proof was invalid or late"
+        }
+
+        return jsonify(response), 200
+
+    # if values['id'] and values['proof']:
+
+    #     return jsonify({ 'message': "Success!" }), 201
+    # else:
+    #     response = {
+    #         'message': 'Failed to POST to /mine'
+    #     }
+    #     return jsonify(response), 400
+
 @app.route('/chain', methods=['GET'])
+
 def full_chain():
     response = {
         'length': len(blockchain.chain),
