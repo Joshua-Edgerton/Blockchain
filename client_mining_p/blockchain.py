@@ -8,7 +8,7 @@ class Blockchain(object):
         self.chain = []
         self.current_transactions = []
         # Create the genesis block
-        self.new_block(previous_hash="==========================", proof=100)
+        self.new_block(previous_hash=1, proof=100)
     def new_block(self, proof, previous_hash=None):
         """
         Create a new Block in the Blockchain
@@ -22,13 +22,19 @@ class Blockchain(object):
         :param previous_hash: (Optional) <str> Hash of previous Block
         :return: <dict> New Block
         """
-
+        if len(self.chain) > 0:
+            block_string = json.dumps(self.last_block, sort_keys=True)
+            guess = f'{block_string}{proof}'.encode()
+            current_hash = hashlib.sha256(guess).hexdigest()
+        else:
+            current_hash = ""
         block = {
             'index': len(self.chain) + 1,
             'timestamp': time(),
             'transactions': self.current_transactions,
             'proof': proof,
             'previous_hash': previous_hash or self.hash(self.chain[-1]),
+            'hash': current_hash,
         }
         # Reset the current list of transactions
         self.current_transactions = []
@@ -36,11 +42,9 @@ class Blockchain(object):
         self.chain.append(block)
         # Return the new block
         return block
-
     def hash(self, block):
         """
         Creates a SHA-256 hash of a Block
-​
         :param block": <dict> Block
         "return": <str>
         """
@@ -52,23 +56,25 @@ class Blockchain(object):
         # We must make sure that the Dictionary is Ordered,
         # or we'll have inconsistent hashes
         # TODO: Create the block_string
-        block_string = json.dumps(block, sort_keys=True).encode()
+        string_object = json.dumps(block, sort_keys=True)
+        block_string = string_object.encode()
         # TODO: Hash this string using sha256
-        hash = hashlib.sha256(block_string).hexdigest()
+        raw_hash = hashlib.sha256(block_string)
+        hex_hash = raw_hash.hexdigest()
         # By itself, the sha256 function returns the hash in a raw string
         # that will likely include escaped characters.
         # This can be hard to read, but .hexdigest() converts the
         # hash to a string of hexadecimal characters, which is
         # easier to work with and understand
         # TODO: Return the hashed block string in hexadecimal format
-        return hash
+        return hex_hash
     @property
     def last_block(self):
         return self.chain[-1]
     @staticmethod
     def valid_proof(block_string, proof):
         """
-        Validates the Proof:  Does hash(block_string, proof) contain 3
+        Validates the Proof:  Does hash(block_string, proof) contain 6
         leading zeroes?  Return true if the proof is valid
         :param block_string: <string> The stringified block to use to
         check in combination with `proof`
@@ -86,68 +92,49 @@ app = Flask(__name__)
 node_identifier = str(uuid4()).replace('-', '')
 # Instantiate the Blockchain
 blockchain = Blockchain()
-# Changed "mine" endpoint to take a POST
 @app.route('/mine', methods=['POST'])
-
 def mine():
-    # Added a request to pull the data out of the POST
-    values = request.get_json()
-    # Require "proof" and "ID"
-    required = ['proof', 'id']
-    if not all(key in values for key in required):
-        response = {'message': "Missing values"}
-        return jsonify(response), 400
-    submitted_proof = values['proof']
     # Run the proof of work algorithm to get the next proof
-    # Forge the new Block by adding it to the chain with the proof
-    block_string = json.dumps(blockchain.last_block, sort_keys=True)
-
-    if blockchain.valid_proof(block_string, submitted_proof):
-        previous_hash = blockchain.hash(blockchain.last_block)
-        block = blockchain.new_block(submitted_proof, previous_hash)
-
+    # proof = blockchain.proof_of_work()
+    # TODO: GET PROOF FROM CLIENT
+    # data is a dictionary with the POST variables
+    data = request.get_json()
+    # Check that 'proof', and 'id' are present
+    if 'proof' not in data or 'id' not in data:
+        response = {'message': 'Must contain "proof" and "id"'}
+        return jsonify(response), 400
+    proof = data['proof']
+    # Determine if the proof is valid
+    last_block = blockchain.last_block
+    last_block_string = json.dumps(last_block, sort_keys=True)
+    if blockchain.valid_proof(last_block_string, proof):
+        # Forge the new Block by adding it to the chain with the proof
+        previous_hash = blockchain.hash(last_block)
+        block = blockchain.new_block(proof, previous_hash)
         response = {
-            'new_block': block
+            'message': "New Block Forged",
+            'index': block['index'],
+            'transactions': block['transactions'],
+            'proof': block['proof'],
+            'previous_hash': block['previous_hash'],
         }
-
         return jsonify(response), 200
-
     else:
-        # TODO: Better messaging for late vs invalid proof
-        response = {
-            'message': "Proof was invalid or late"
-        }
-
+        response = {'message': 'Invalid proof'}
         return jsonify(response), 200
-
-    # if values['id'] and values['proof']:
-
-    #     return jsonify({ 'message': "Success!" }), 201
-    # else:
-    #     response = {
-    #         'message': 'Failed to POST to /mine'
-    #     }
-    #     return jsonify(response), 400
-
 @app.route('/chain', methods=['GET'])
-
 def full_chain():
     response = {
         'length': len(blockchain.chain),
         'chain': blockchain.chain
     }
     return jsonify(response), 200
-
-# Add an endpoint called last_block
-# Returns last block in the chain
 @app.route('/last_block', methods=['GET'])
-def return_last_block():
-    # Uses the "last_block" function to return last block
+def get_last_block():
     response = {
-        'last_block': blockchain.last_block,
+        'last_block': blockchain.last_block
     }
     return jsonify(response), 200
-
 # Run the program on port 5000
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
